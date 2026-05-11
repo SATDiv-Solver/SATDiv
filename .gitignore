@@ -1,0 +1,13 @@
+.cache/
+.vscode/
+.idea/
+.DS_Store
+build/
+lib/
+*.o
+*.od
+*.or
+*.op
+depend.mk
+/SATDiv
+*.tar.gz
