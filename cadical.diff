@@ -1,0 +1,45 @@
+diff --git a/src/decide.cpp b/src/decide.cpp
+index fc8f8e09..a2a78036 100644
+--- a/src/decide.cpp
++++ b/src/decide.cpp
+@@ -67,24 +67,14 @@ int Internal::next_random_decision () {
+   assert (max_var);
+   if (!opts.randec)
+     return 0;
+-  if (stable && !opts.randecstable)
+-    return 0;
+-  if (!stable && !opts.randecfocused)
+-    return 0;
+-  if (stats.conflicts < lim.random_decision)
+-    return 0;
+   if (satisfied ())
+     return 0;
+ 
+-  if (!randomized_deciding) {
+-    if (level > (int) assumptions.size () + !!constraint.size ()) {
+-      LOG ("random decision delayed because too deep");
+-      return 0;
+-    }
+-    start_random_sequence ();
+-  }
+-  LOG ("searching for random decision");
+   Random random (internal->opts.seed);
++  if (static_cast<int>(random.generate_double() * 100) >= opts.randecpercentage)
++    return 0;
++
++  LOG ("searching for random decision");
+   random += stats.decisions;
+   ++stats.randec.random_decisions;
+   for (;;) {
+diff --git a/src/options.hpp b/src/options.hpp
+index cfc60f95..4430eb95 100644
+--- a/src/options.hpp
++++ b/src/options.hpp
+@@ -172,6 +172,7 @@ OPTION( randecfocused,     1,  0,  1,0,0,1, "random decisions in focused mode")
+ OPTION( randecinit,       1e3, 2,2e9,0,0,1, "inital random decision interval") \
+ OPTION( randecint,       500,  0,2e9,0,0,1, "random conflict length") \
+ OPTION( randeclength,     10,  1,1e9,0,0,1, "length random decisions phases") \
++OPTION( randecpercentage, 30,  0,100,0,0,1, "random decisions percentage") \
+ OPTION( randecstable,      0,  0,  1,0,0,1, "random decisions in stable mode") \
+ OPTION( realtime,          0,  0,  1,0,0,0, "real instead of process time") \
+ OPTION( recomputetier,     1,  0,  1,0,0,1, "recompute tiers") \
