@@ -11,6 +11,7 @@
 #include <numeric>
 #include <cstdio>
 
+#include "core/Dimacs.h"
 using std::make_pair;
 using std::cout, std::endl;
 
@@ -55,46 +56,31 @@ DiversitySAT:: DiversitySAT(const Argument &params) {
     std::remove(reduced_cnf_path.c_str());
     dbg(nvar, nclauses);
 
-    use_cadical = true;
-    cadical_solver = new CaDiCaL::Solver;
-
-    cadical_solver->set("shrink", 0);
-    cadical_solver->set("quiet", 1);
-    cadical_solver->set("phase", 1);
-    cadical_solver->set("forcephase", 1);
-    cadical_solver->set("lucky", 0);
-
-    // cadical_solver->set("score", 0);
-    if (params.cadical_randec > 0 && nclauses <= 1'000'000) {
-        cadical_solver->set("randec", 1);
-        cadical_solver->set("randecpercentage", params.cadical_randec);
+    if (params.generate_strategy == "maple") {
+        use_simp = false;
+        solver.eliminate(true);
+    } else {
+        use_simp = true;
     }
-
-    cadical_solver->read_dimacs(cnf_path.c_str(), nvar);
+    gzFile in = gzopen(real_input_cnf_path.c_str(), "rb");
+    if (in == NULL)
+        printf("c ERROR! Could not open file: %s\n", real_input_cnf_path.c_str()), exit(1);
+    Minisat::parse_DIMACS(in, solver);
+    gzclose(in);
 
     count_each_var_[0].resize(nvar + 2, 0);
     count_each_var_[1].resize(nvar + 2, 0);
 
     if (! params.just_optimize) {
-        vector<int> first_sol;
+        vector<int> first_sol(nvar);
+        assert(solve());
+        for (int v = 0; v < nvar; v ++)
+            first_sol[v] = solver.modelValue(v) == l_True;
 
-        vector<int> phase;
-        for (int v = 1; v <= nvar; v ++)
-            phase.push_back(gen() % 2 ? v : -v);
-        for (int lit : phase)
-            cadical_solver->phase(lit);
-
-        assert(cadical_solver->solve() == 10);
-        for (int i = 1; i <= nvar; i ++)
-            first_sol.push_back(cadical_solver->val(i) > 0 ? 1 : 0);
-        
-        for (int lit : phase)
-            cadical_solver->unphase(lit);
-
-        
         UpdateInfo(first_sol);
         sol_set.emplace_back(first_sol);
     }
+    solver.no_use_progate_diver = false;
 
     candidate_set_.resize(candidate_set_size * 2);
 
@@ -159,9 +145,7 @@ void DiversitySAT::set_solution_set (string init_solution_set_path) {
     run ();
 }
 
-DiversitySAT:: ~DiversitySAT() {
-    delete cadical_solver;
-}
+DiversitySAT:: ~DiversitySAT() {}
 
 int DiversitySAT::get_gain (const vector<int> &sol) {
     int gain = 0;
@@ -225,14 +209,13 @@ void DiversitySAT::GenerateCandidateSet (bool use_cache) {
         }
 
         for (int lit : phase)
-            cadical_solver->phase(lit);
-        assert(cadical_solver->solve() == 10);
+            solver.setPolarity(abs(lit) - 1, lit > 0);
+        assert(solve());
         candidate_set_[i].resize(nvar);
         for (int v = 0; v < nvar; v ++)
-            candidate_set_[i][v] = (cadical_solver->val(v + 1) > 0 ? 1 : 0);
-
-        for (int lit : phase)
-            cadical_solver->unphase(lit);
+            candidate_set_[i][v] = solver.modelValue(v) == l_True;
+        // for (int lit : phase)
+        //     solver.unphase(abs(lit) - 1);
     }
 }
 
@@ -526,6 +509,7 @@ void DiversitySAT::random_replace () {
 
     int sol_id = gen() % k;
     vector<int> new_sol; new_sol.resize(nvar);
+
     vector<int> phase;
     for(int v = 0; v < nvar; v ++) {
         int v0 = count_each_var_[0][v];
@@ -539,12 +523,12 @@ void DiversitySAT::random_replace () {
     }
 
     for (int lit : phase)
-        cadical_solver->phase(lit);
-    assert(cadical_solver->solve() == 10);
+        solver.setPolarity(abs(lit) - 1, lit > 0);
+    assert(solve());
     for (int v = 0; v < nvar; v ++)
-        new_sol[v] = (cadical_solver->val(v + 1) > 0 ? 1 : 0);
-    for (int lit : phase)
-        cadical_solver->unphase(lit);
+        new_sol[v] = solver.modelValue(v) == l_True;
+    // for (int lit : phase)
+    //     solver.unphase(abs(lit) - 1);
 
     replace(sol_id, new_sol);
 }
@@ -596,7 +580,7 @@ int DiversitySAT::greedy_step_var () {
             continue ;
 
         vector<int> phase, new_sol(nvar);
-        cadical_solver->assume(lit);
+        auto assume_lit = Minisat::mkLit(abs(lit - 1), lit < 0);
         for (int v = 0; v < nvar; v ++) {
             int v0 = count_each_var_[0][v];
             int v1 = count_each_var_[1][v];
@@ -617,19 +601,16 @@ int DiversitySAT::greedy_step_var () {
                     phase.push_back(- v - 1);
             }
         }
-        for (int l : phase)
-            cadical_solver->phase(l);
-        int ret = cadical_solver->solve();
-
-        if (ret == 10) {
+        for (int lit : phase)
+            solver.setPolarity(abs(lit) - 1, lit > 0);
+        auto ret = solve(assume_lit);
+        if (ret)
             for (int v = 0; v < nvar; v ++)
-                new_sol[v] = (cadical_solver->val(v + 1) > 0 ? 1 : 0);
-        }
-        for (int l : phase)
-            cadical_solver->unphase(l);
-        cadical_solver->reset_assumptions();
+                new_sol[v] = solver.modelValue(v) == l_True;
+        // for (int lit : phase)
+        //     solver.unphase(abs(lit) - 1);
 
-        if (ret != 10) {
+        if (!ret) {
             disabled[x] = true;
             return false;
         }
@@ -732,13 +713,10 @@ void DiversitySAT::get_a_solution_by_cadical (vector<int> &new_sol) {
         }
     }
     for (int lit : phase)
-        cadical_solver->phase(lit);
-    assert(cadical_solver->solve() == 10);
-    for (int l : phase)
-        cadical_solver->unphase(l);
-
+        solver.setPolarity(abs(lit) - 1, lit > 0);
+    assert(solve());
     for (int v = 0; v < nvar; v ++)
-        new_sol[v] = (cadical_solver->val(v + 1) > 0 ? 1 : 0);
+        new_sol[v] = solver.modelValue(v) == l_True;
 }
 
 void DiversitySAT::get_a_solution_by_cadical_force_lit (vector<int> &new_sol, int lit) {
@@ -761,24 +739,17 @@ void DiversitySAT::get_a_solution_by_cadical_force_lit (vector<int> &new_sol, in
         }
     }
 
-    cadical_solver->assume(lit);
+    auto assume_lit = Minisat::mkLit(abs(lit) - 1, lit < 0);
     for (int lit : phase)
-        cadical_solver->phase(lit);
-    int ret = cadical_solver->solve();
-
-    if (ret == 10) {
+        solver.setPolarity(abs(lit) - 1, lit > 0);
+    auto ret = solve(assume_lit);
+    if (ret)
         for (int v = 0; v < nvar; v ++)
-            new_sol[v] = (cadical_solver->val(v + 1) > 0 ? 1 : 0);
-        for (int l : phase)
-            cadical_solver->unphase(l);
-        cadical_solver->reset_assumptions();
-    }
+            new_sol[v] = solver.modelValue(v) == l_True;
+    // for (int lit : phase)
+    //     solver.unphase(abs(lit) - 1);
 
-    else {
-        for (int l : phase)
-            cadical_solver->unphase(l);
-        cadical_solver->reset_assumptions();
-
+    if (!ret) {
         disabled[abs(lit) - 1] = 1;
         get_a_solution_by_cadical(new_sol);
     }
@@ -1016,11 +987,10 @@ void DiversitySAT::optimize () {
 
     int cur_step = 0;
 
-    // dbg("QAQ");
     best_sol_set = sol_set;
     Mx_SumDis = SumDis;
 
-    int last_update_step = 0;
+    [[maybe_unused]] int last_update_step = 0;
     dbg(use_pair, use_cell_mode);
 
     int small_delta_times = 0;

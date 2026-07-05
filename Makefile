@@ -1,5 +1,5 @@
 COMPILER = g++
-CFLAGS = -O3 -mcmodel=large -std=c++17 -Wall -Wno-sign-compare -Idbg-macro -Iclipp/include
+CFLAGS = -O3 -mcmodel=large -std=c++17 -Wall -Wno-sign-compare -Wno-parentheses -Idbg-macro -Iclipp/include -IMaple
 PRE_CFLAGS = ${CFLAGS} -c
 
 TARGET = SATDiv
@@ -14,10 +14,9 @@ DSAT_CPP_FILE = ${SRC_DIR}/${DSAT}.cpp
 DSAT_H_FILE = ${SRC_DIR}/${DSAT}.h ${SRC_DIR}/Argument.h ${SRC_DIR}/cnfinfo.h ${SRC_DIR}/MyBitSet.h
 DSAT_SOURCE_FILES = ${DSAT_H_FILE} ${DSAT_CPP_FILE}
 
-CADICAL = cadical
-LIB_CADICAL = ${LIB_DIR}/${CADICAL}
+MAPLE_OBJS = Maple/core/Solver.or Maple/simp/SimpSolver.or
 
-TARGET_FILES = 	${DSAT_TARGET}
+TARGET_FILES = 	${DSAT_TARGET} ${MAPLE_OBJS}
 
 UPDATE = update
 CLEAN = clean
@@ -28,20 +27,14 @@ MAIN_SOURCE_FILE = ${SRC_DIR}/main.cpp
 
 all: ${TARGET} ${UPDATE}
 
-${DSAT_TARGET}: ${DSAT_SOURCE_FILES} ${EXT_MINISAT_HEADERS}
+${DSAT_TARGET}: ${DSAT_SOURCE_FILES}
 	${COMPILER} ${PRE_CFLAGS} ${DSAT_CPP_FILE} -o ${DSAT_TARGET}
 
-${LIB_CADICAL}: ${CADICAL}/build/lib${CADICAL}.a
-	@mkdir -p ${LIB_DIR}
-	@cp ${CADICAL}/build/lib${CADICAL}.a lib/
+${MAPLE_OBJS}:
+	${MAKE} -C Maple/simp rs
 
-${CADICAL}/build/lib${CADICAL}.a: cadical.diff
-	@cd ${CADICAL} && git restore . && git apply ../cadical.diff && ./configure && cd ..
-	${MAKE} -C ${CADICAL}
-	@rm -rf ${CADICAL}/build/*.o
-
-${TARGET}: ${MAIN_SOURCE_FILE} ${TARGET_FILES} ${LIB_CADICAL}
-	${COMPILER} ${CFLAGS} ${MAIN_SOURCE_FILE} ${TARGET_FILES} -o ${TARGET} -L${LIB_DIR} -l${CADICAL}
+${TARGET}: ${MAIN_SOURCE_FILE} ${TARGET_FILES} ${MAPLE_OBJS}
+	${COMPILER} ${CFLAGS} ${MAIN_SOURCE_FILE} ${TARGET_FILES} -o ${TARGET} -lz
 
 ${UPDATE}:
 	@chmod +x ${BIN_DIR}/*
@@ -50,8 +43,7 @@ ${CLEAN}:
 	@rm -f *~
 	@rm -f ${SRC_DIR}/*.o
 	@rm -f ${SRC_DIR}/*~
-	@rm -rf ${LIB_DIR}
-	@rm -rf ${CADICAL}/build
+	${MAKE} -C Maple/simp clean
 
 ${CLEANUP}: ${CLEAN}
 	@rm -f ${TARGET}

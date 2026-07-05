@@ -53,7 +53,7 @@ Argument ParseArgument(int argc, char *argv[]) {
         (option("-candidate_set_size") & value("size", argument.candidate_set_size))
             % "set lambda (default 1)",
         (option("-generate_strategy") & value("generate strategy", argument.generate_strategy))
-            % "generate strategy (default cadical)",
+            % "generate strategy (default maple)",
 
         (option("-stop_length") & value("stop_length", argument.stop_length))
             % "stop length (default 1,000,000,000)",
@@ -112,7 +112,7 @@ int main(int argc, char **argv) {
         diversitySAT.set_solution_set(argument.init_solution_set_path);
 
     else {    
-        if (argument.generate_strategy == "contextsat" || argument.generate_strategy == "cadical")
+        if (argument.generate_strategy == "maple" || argument.generate_strategy == "maple-simp")
             diversitySAT.run();
         else {
             std::cerr << "unsupported generate_strategy: " << argument.generate_strategy << std::endl;

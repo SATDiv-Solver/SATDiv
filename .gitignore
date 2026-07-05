@@ -10,4 +10,6 @@ lib/
 *.op
 depend.mk
 /SATDiv
+/Maple/simp/glucose
+/Maple/simp/glucose_static
 *.tar.gz

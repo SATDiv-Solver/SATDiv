@@ -1,7 +1,7 @@
 #ifndef LOCALSEARCH_OPTIMIZER_INCLUDE_H
 #define LOCALSEARCH_OPTIMIZER_INCLUDE_H
 
-#include "../cadical/src/cadical.hpp"
+#include "simp/SimpSolver.h"
 
 #include "cnfinfo.h"
 #include "MyBitSet.h"
@@ -63,33 +63,9 @@ public:
 
     void set_solution_set (string init_solution_set_path);
 
-    void check_cadical () {
-        auto solver = std::make_unique<CaDiCaL::Solver>();
-        // solver->set("shrink", 0);
-        solver->set("quiet", 1);
-        // solver->set("phase", 1);
-        // solver->set("forcephase", 1);
-        // solver->set("lucky", 0);
-        solver->read_dimacs(cnf_path.c_str(), nvar);
-
-        for (int i = 1; i <= nvar; i ++)
-            solver->phase(i);
-        dbg(solver->solve());
-        for (int i = 1; i <= nvar; i ++)
-            std::cout << (solver->val(i) > 0 ? 1 : 0);
-        std::cout << '\n';
-
-        for (int i = 1; i <= nvar; i ++)
-            solver->phase(-i);
-        dbg(solver->solve());
-        for (int i = 1; i <= nvar; i ++)
-            std::cout << (solver->val(i) > 0 ? 1 : 0);
-        std::cout << '\n';
-    }
-
 private:
 
-    bool use_cadical = true;
+    bool use_simp = true;
 
     int seed = 1;
     int k = 10;
@@ -98,9 +74,25 @@ private:
     u_int64_t SumDis = 0;
 
     string cnf_path;
+    // string output_path;
     std::mt19937_64 gen;
 
-    CaDiCaL::Solver *cadical_solver;
+    using lbool = Minisat::lbool;
+    using Lit = Minisat::Lit;
+    Minisat::SimpSolver solver;
+    bool solve() {
+        return (use_simp ? solver.solveLimited({})
+                         : solver.Solver::solveLimited({}))
+            == l_True;
+    }
+    bool solve(Lit lit) {
+        Minisat::vec<Lit> assumps;
+        assumps.push(lit);
+        return (use_simp ? solver.solveLimited(assumps)
+                         : solver.Solver::solveLimited(assumps))
+            == l_True;
+    }
+    bool solve(int lit) { return solve(Minisat::mkLit(abs(lit) - 1, lit < 0)); }
 
     vector<vector<int>> clauses;
     vector<vector<int>> pos_in_cls, neg_in_cls;

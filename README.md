@@ -16,7 +16,7 @@ git submodule update --init
 
 ## Instructions for Building *SATDiv*
 
-*SATDiv* is built on top of the SAT solver [CaDiCaL](https://github.com/arminbiere/cadical.git) and utilizes the libraries [dbg-macro](https://github.com/sharkdp/dbg-macro) and [clipp](https://github.com/muellan/clipp).
+*SATDiv* is built on top of the SAT solver [Maple](https://github.com/shaowei-cai-group/relaxed-sat/blob/main/codes/maple/MapleLCMDistChronoBT-DL-v2.1.zip) and utilizes the libraries [dbg-macro](https://github.com/sharkdp/dbg-macro) and [clipp](https://github.com/muellan/clipp).
 
 This project is configured by Makefile. To build this project, users may use following commands:
 
@@ -64,13 +64,13 @@ The command above runs *SATDiv* on `benchmarks/software/linux.cnf`, generating 1
 
 ## Implementation of *SATDiv*
 
-*SATDiv* is built on top of the SAT solver [CaDiCaL](https://github.com/arminbiere/cadical.git). The `cadical.diff` file contains our modifications to CaDiCaL. The main implementation of SATDiv is in `src/DiversitySAT.cpp`.
+*SATDiv* is built on top of the SAT solver [Maple](https://github.com/shaowei-cai-group/relaxed-sat/blob/main/codes/maple/MapleLCMDistChronoBT-DL-v2.1.zip). The main implementation of SATDiv is in `src/DiversitySAT.cpp`.
 
-## Instruction for Maple Version
+## Instruction for CaDiCaL Version
 
-The `main` branch contains the implementation of *SATDiv* using CaDiCaL as its low-level solver. We also has a branch named `maple` containing the implementation of *SATDiv* using Maple as its low-level solver.
+This branch, `maple`, contains the implementation of *SATDiv* using Maple as its low-level solver.
 
-For details about *SATDiv-Maple*, please switch to `maple` branch.
+For details about *SATDiv* using CaDiCaL, please switch to the `main` branch.
 
 ## Benchmarks
 

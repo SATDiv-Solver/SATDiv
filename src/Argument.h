@@ -12,7 +12,7 @@ struct Argument {
     std::string output_path;
 
     int candidate_set_size = 1;
-    std::string generate_strategy = "cadical"; // "cadical", "contextsat"
+    std::string generate_strategy = "maple"; // "maple", "maple-simp"
     int cadical_randec = 30; // percentage: [0, 100]
     
     int stop_length = 1'000'000'000;

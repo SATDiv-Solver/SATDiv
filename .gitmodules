@@ -4,6 +4,3 @@
 [submodule "dbg-macro"]
 	path = dbg-macro
 	url = https://github.com/sharkdp/dbg-macro.git
-[submodule "cadical"]
-	path = cadical
-	url = https://github.com/arminbiere/cadical.git
