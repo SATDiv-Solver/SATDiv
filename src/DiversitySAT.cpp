@@ -53,7 +53,6 @@ DiversitySAT:: DiversitySAT(const Argument &params) {
 
     CNFInfo cnf(real_input_cnf_path);
     cnf.dump(nvar, nclauses, clauses, pos_in_cls, neg_in_cls);
-    std::remove(reduced_cnf_path.c_str());
     dbg(nvar, nclauses);
 
     if (params.generate_strategy == "maple") {
@@ -67,6 +66,14 @@ DiversitySAT:: DiversitySAT(const Argument &params) {
         printf("c ERROR! Could not open file: %s\n", real_input_cnf_path.c_str()), exit(1);
     Minisat::parse_DIMACS(in, solver);
     gzclose(in);
+    std::remove(reduced_cnf_path.c_str());
+
+    while (solver.nVars() < nvar)
+        solver.newVar();
+    // Every original variable may be used in a later assumption.
+    if (use_simp)
+        for (int v = 0; v < nvar; ++v)
+            solver.setFrozen(v, true);
 
     count_each_var_[0].resize(nvar + 2, 0);
     count_each_var_[1].resize(nvar + 2, 0);
@@ -580,7 +587,7 @@ int DiversitySAT::greedy_step_var () {
             continue ;
 
         vector<int> phase, new_sol(nvar);
-        auto assume_lit = Minisat::mkLit(abs(lit - 1), lit < 0);
+        auto assume_lit = Minisat::mkLit(abs(lit) - 1, lit < 0);
         for (int v = 0; v < nvar; v ++) {
             int v0 = count_each_var_[0][v];
             int v1 = count_each_var_[1][v];
@@ -969,6 +976,10 @@ int DiversitySAT::meow_change () {
 }
 
 void DiversitySAT::optimize () {
+
+    k = sol_set.size();
+    if (k == 0)
+        return;
 
     last_greedy_time_sol = vector<int>(k + 1, -taboo - 1);
     last_greedy_time_var = vector<int>(nvar + 1, -taboo - 1);
