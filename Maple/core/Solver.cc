@@ -2081,7 +2081,7 @@ lbool Solver::search(int& nof_conflicts)
                 reduceDB(); }
 
             Lit next = lit_Undef;
-            /*while (decisionLevel() < assumptions.size()){
+            while (decisionLevel() < assumptions.size()){
                 // Perform user provided assumption:
                 Lit p = assumptions[decisionLevel()];
                 if (value(p) == l_True){
@@ -2096,7 +2096,14 @@ lbool Solver::search(int& nof_conflicts)
                 }
             }
 
-            if (next == lit_Undef)*/{
+            if (next != lit_Undef){
+                // Assumptions are constraints: do not let propagateDiver replace their sign.
+                newDecisionLevel();
+                uncheckedEnqueue(next, decisionLevel());
+                continue;
+            }
+
+            {
                 // New variable decision:
                 decisions++;
                 next = pickBranchLit();
@@ -2189,6 +2196,9 @@ lbool Solver::solve_()
 
     add_tmp.clear();
 
+    // Backtracking only reinserts variables into the active heuristic heap.
+    // A new solve switches heuristics, so restore all unassigned variables.
+    rebuildOrderHeap();
     VSIDS = true;
     int init = 10000;
     while (status == l_Undef && init > 0 /*&& withinBudget()*/)
